@@ -3,7 +3,6 @@ import type {
   ChangeEvent,
   CompositionEvent,
   KeyboardEvent as InputKeyboardEvent,
-  MouseEvent as ListMouseEvent,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -26,6 +25,65 @@ type AppSettings = {
   query_delay_ms: number;
 };
 
+type FallbackVisual = {
+  glyph: string;
+  background: string;
+  color: string;
+};
+
+const FALLBACK_ICON_LIBRARY: FallbackVisual[] = [
+  {
+    glyph: "🌀",
+    background: "linear-gradient(135deg, #8093ff, #72e1ff)",
+    color: "#ffffff",
+  },
+  {
+    glyph: "✨",
+    background: "linear-gradient(135deg, #ff9a9e, #fad0c4)",
+    color: "#4b1f29",
+  },
+  {
+    glyph: "🚀",
+    background: "linear-gradient(135deg, #70f1ff, #6d88ff)",
+    color: "#0b1c32",
+  },
+  {
+    glyph: "📁",
+    background: "linear-gradient(135deg, #f6d365, #fda085)",
+    color: "#4b230d",
+  },
+  {
+    glyph: "🔖",
+    background: "linear-gradient(135deg, #8ec5fc, #e0c3fc)",
+    color: "#2b1b33",
+  },
+  {
+    glyph: "🌐",
+    background: "linear-gradient(135deg, #84fab0, #8fd3f4)",
+    color: "#083828",
+  },
+  {
+    glyph: "⚡",
+    background: "linear-gradient(135deg, #fddb92, #d1fdff)",
+    color: "#402a04",
+  },
+  {
+    glyph: "🔎",
+    background: "linear-gradient(135deg, #c3cfe2, #c3cfe2)",
+    color: "#1a2433",
+  },
+  {
+    glyph: "💡",
+    background: "linear-gradient(135deg, #ffd3a5, #fd6585)",
+    color: "#3d1204",
+  },
+  {
+    glyph: "🧭",
+    background: "linear-gradient(135deg, #f5f7fa, #c3cfe2)",
+    color: "#1c2230",
+  },
+];
+
 const HIDE_WINDOW_EVENT = "hide_window";
 const OPEN_SETTINGS_EVENT = "open_settings";
 function App() {
@@ -42,8 +100,6 @@ function App() {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsInputRef = useRef<HTMLInputElement | null>(null);
   const latestQueryRef = useRef("");
-  const resultRefs = useRef<(HTMLLIElement | null)[]>([]);
-  const resultsListRef = useRef<HTMLUListElement | null>(null);
   const currentWindow = useMemo(() => getCurrentWindow(), []);
   const queryDelayMs = settings?.query_delay_ms ?? 120;
 
@@ -69,6 +125,19 @@ function App() {
       showToast("加载设置失败");
     }
   }, [showToast]);
+
+  const pickFallbackIcon = useCallback((item: SearchResult) => {
+    const basis = item.id || item.title || item.subtitle || String(item.score);
+    let hash = 0;
+    for (let index = 0; index < basis.length; index += 1) {
+      hash = (hash << 5) - hash + basis.charCodeAt(index);
+      hash |= 0;
+    }
+    const normalized = Math.abs(hash);
+    return FALLBACK_ICON_LIBRARY[
+      normalized % FALLBACK_ICON_LIBRARY.length
+    ];
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -194,78 +263,10 @@ function App() {
     };
   }, [query, isComposing, showToast, queryDelayMs]);
 
-  const handleKeyDown = useCallback(
-    async (event: InputKeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setSelectedIndex((current: number) => {
-          if (results.length === 0) {
-            return 0;
-          }
-          return (current + 1) % results.length;
-        });
-        return;
-      }
+  const resultsCount = results.length;
 
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setSelectedIndex((current: number) => {
-          if (results.length === 0) {
-            return 0;
-          }
-          return (current - 1 + results.length) % results.length;
-        });
-        return;
-      }
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const selected = results[selectedIndex];
-        if (selected) {
-          try {
-            await invoke("execute_action", {
-              id: selected.action_id,
-              payload: selected.action_payload,
-            });
-            setQuery("");
-            setResults([]);
-            setSelectedIndex(0);
-          } catch (error) {
-            console.error("Failed to execute action", error);
-            showToast("执行失败，请检查目标是否存在");
-          }
-        }
-      }
-    },
-    [results, selectedIndex, showToast],
-  );
-
-  useEffect(() => {
-    resultRefs.current = resultRefs.current.slice(0, results.length);
-  }, [results]);
-
-  useEffect(() => {
-    const item = resultRefs.current[selectedIndex];
-    const list = resultsListRef.current;
-    if (!item || !list) {
-      return;
-    }
-
-    const itemTop = item.offsetTop;
-    const itemBottom = itemTop + item.offsetHeight;
-    const viewTop = list.scrollTop;
-    const viewBottom = viewTop + list.clientHeight;
-
-    if (itemTop < viewTop) {
-      list.scrollTo({ top: itemTop, behavior: "smooth" });
-    } else if (itemBottom > viewBottom) {
-      list.scrollTo({ top: itemBottom - list.clientHeight, behavior: "smooth" });
-    }
-  }, [selectedIndex, results]);
-
-  const handleMouseClick = useCallback(
-    async (index: number) => {
-      const selected = results[index];
+  const executeSelected = useCallback(
+    async (selected?: SearchResult) => {
       if (!selected) {
         return;
       }
@@ -283,7 +284,42 @@ function App() {
         showToast("执行失败，请检查目标是否存在");
       }
     },
-    [results, showToast],
+    [showToast],
+  );
+
+  const stepSelection = useCallback(
+    (direction: 1 | -1) => {
+      if (resultsCount === 0) {
+        setSelectedIndex(0);
+        return;
+      }
+      setSelectedIndex((current: number) =>
+        (current + direction + resultsCount) % resultsCount,
+      );
+    },
+    [resultsCount],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: InputKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        stepSelection(1);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        stepSelection(-1);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void executeSelected(results[selectedIndex]);
+      }
+    },
+    [executeSelected, results, selectedIndex, stepSelection],
   );
 
   const resolveResultTag = useCallback((item: SearchResult) => {
@@ -368,7 +404,11 @@ function App() {
   );
 
   const hasQuery = query.trim().length > 0;
-  const hasMatches = results.length > 0;
+  const hasMatches = resultsCount > 0;
+  const activeResult = hasMatches ? results[selectedIndex] : null;
+  const fallbackVisual = activeResult
+    ? pickFallbackIcon(activeResult)
+    : null;
   const containerClass = hasMatches
     ? "container expanded"
     : "container compact";
@@ -409,42 +449,70 @@ function App() {
       <div
         className={hasMatches ? "results-wrapper expanded" : "results-wrapper"}
       >
-        {hasMatches ? (
-          <ul className="results-list" ref={resultsListRef}>
-            {results.map((item: SearchResult, index: number) => (
-              <li
-                key={item.id}
-                ref={(element) => {
-                  resultRefs.current[index] = element;
-                }}
-                className={
-                  index === selectedIndex
-                    ? "result-item selected"
-                    : "result-item"
-                }
-                onMouseEnter={() => setSelectedIndex(index)}
-                onMouseDown={(event: ListMouseEvent<HTMLLIElement>) =>
-                  event.preventDefault()
-                }
-                onClick={() => void handleMouseClick(index)}
-              >
-                {item.icon ? (
-                  <img
-                    src={`data:image/png;base64,${item.icon}`}
-                    className="result-icon"
-                    alt="result icon"
-                  />
-                ) : (
-                  <div className="result-icon placeholder" />
-                )}
-                <div className="result-text">
-                  <div className="result-title">{item.title}</div>
-                  <div className="result-subtitle">{item.subtitle}</div>
+        {activeResult ? (
+          <div className="result-card">
+            <div className="result-card-header">
+              <span className="result-counter">
+                {String(selectedIndex + 1).padStart(2, "0")} / {" "}
+                {String(resultsCount).padStart(2, "0")}
+              </span>
+              <span className="result-card-hint">↑ / ↓ 切换</span>
+            </div>
+            <div className="result-card-body">
+              {activeResult.icon ? (
+                <img
+                  src={`data:image/png;base64,${activeResult.icon}`}
+                  className="result-icon"
+                  alt="result icon"
+                />
+              ) : (
+                <div
+                  className="result-icon placeholder"
+                  style={{
+                    background: fallbackVisual?.background,
+                    color: fallbackVisual?.color,
+                  }}
+                  aria-hidden="true"
+                >
+                  {fallbackVisual?.glyph ?? "◎"}
                 </div>
-                <div className="result-type-tag">{resolveResultTag(item)}</div>
-              </li>
-            ))}
-          </ul>
+              )}
+              <div className="result-card-text">
+                <div className="result-title">{activeResult.title}</div>
+                <div className="result-subtitle">{activeResult.subtitle}</div>
+              </div>
+              <div className="result-type-tag">
+                {resolveResultTag(activeResult)}
+              </div>
+            </div>
+            <div className="result-card-footer">
+              <div className="result-nav-buttons">
+                <button
+                  type="button"
+                  className="ghost-button nav-button"
+                  onClick={() => stepSelection(-1)}
+                  disabled={resultsCount <= 1}
+                >
+                  上一条
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button nav-button"
+                  onClick={() => stepSelection(1)}
+                  disabled={resultsCount <= 1}
+                >
+                  下一条
+                </button>
+              </div>
+              <button
+                type="button"
+                className="primary-button primary-action"
+                onClick={() => void executeSelected(activeResult)}
+              >
+                立即打开
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
       {hasQuery && !hasMatches ? (
