@@ -13,19 +13,28 @@
   -webkit-font-smoothing: antialiased;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   background: transparent;
+  overflow: hidden;
+  width: 100%;
 }
 
 .container {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 20px);
-  margin: 10px;
+  width: min(720px, calc(100vw - 32px));
+  margin: 10px auto;
   padding: 12px;
   border-radius: 12px;
   background-color: rgba(25, 25, 30, 0.76);
@@ -38,7 +47,7 @@ body,
 .search-bar {
   width: 100%;
   padding: 18px 22px;
-  font-size: 24px;
+  font-size: clamp(20px, 3vw, 28px);
   color: #ffffff;
   background: transparent;
   border: none;
@@ -58,6 +67,7 @@ body,
   padding: 0 8px 8px 8px;
   list-style: none;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .results-list::-webkit-scrollbar {
@@ -91,8 +101,8 @@ body,
 }
 
 .result-icon {
-  width: 36px;
-  height: 36px;
+  width: clamp(32px, 4vw, 40px);
+  height: clamp(32px, 4vw, 40px);
   border-radius: 8px;
   background-color: rgba(255, 255, 255, 0.08);
   object-fit: cover;
@@ -115,24 +125,23 @@ body,
   display: flex;
   flex-direction: column;
   min-width: 0;
+  gap: 4px;
 }
 
 .result-title {
-  font-size: 16px;
+  font-size: clamp(15px, 1.4vw, 18px);
   color: #ffffff;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .result-subtitle {
-  margin-top: 2px;
-  font-size: 13px;
+  margin-top: 0;
+  font-size: clamp(12px, 1.1vw, 14px);
   color: rgba(255, 255, 255, 0.65);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .empty-state {
@@ -141,9 +150,10 @@ body,
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.4);
-  font-size: 15px;
+  font-size: clamp(14px, 1.2vw, 16px);
   padding: 0 24px;
   text-align: center;
+  text-wrap: balance;
 }
 
 .toast {

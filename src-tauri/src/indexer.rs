@@ -1,45 +1,31 @@
-use std::{
-    collections::HashSet,
-    env,
-    ffi::OsStr,
-    path::{Path, PathBuf},
-    ptr,
-};
+use std::{collections::HashSet, fs, path::Path};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use log::{debug, error, warn};
 use tauri::async_runtime;
-use walkdir::WalkDir;
 use windows::{
-    core::{Interface, Result as WinResult, PCWSTR},
-    Foundation::Size,
-    Management::Deployment::PackageManager,
+    core::Result as WinResult, Foundation::Size, Management::Deployment::PackageManager,
     Storage::Streams::DataReader,
-    Win32::{
-        Foundation::MAX_PATH,
-        Storage::FileSystem::WIN32_FIND_DATAW,
-        System::Com::{CoCreateInstance, IPersistFile, CLSCTX_INPROC_SERVER, STGM_READ},
-        UI::Shell::{IShellLinkW, ShellLink, SLGP_RAWPATH, SLGP_UNCPRIORITY},
-    },
 };
+use winreg::{enums::*, RegKey};
 
 use crate::{
     models::{AppType, ApplicationInfo},
-    windows_utils::{extract_icon_from_path, os_str_to_wide, wide_to_string, ComGuard},
+    windows_utils::{expand_env_vars, extract_icon_from_path},
 };
 
 /// Build the application index by scanning Start Menu shortcuts and UWP apps.
 pub async fn build_index() -> Vec<ApplicationInfo> {
     let mut results = Vec::new();
 
-    let win32 = match async_runtime::spawn_blocking(build_win32_index).await {
+    let win32 = match async_runtime::spawn_blocking(enumerate_installed_win32_apps).await {
         Ok(apps) => apps,
         Err(err) => {
             error!("win32 index task failed: {err}");
             Vec::new()
         }
     };
-    debug!("indexed {} Win32 shortcuts", win32.len());
+    debug!("indexed {} installed Win32 apps", win32.len());
     results.extend(win32);
 
     match enumerate_uwp_apps().await {
@@ -56,41 +42,35 @@ pub async fn build_index() -> Vec<ApplicationInfo> {
     results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     results
 }
+const UNINSTALL_SUBKEYS: &[&str] = &[
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+];
 
-fn build_win32_index() -> Vec<ApplicationInfo> {
+fn enumerate_installed_win32_apps() -> Vec<ApplicationInfo> {
     let mut applications = Vec::new();
     let mut seen = HashSet::new();
+    let roots = [
+        RegKey::predef(HKEY_LOCAL_MACHINE),
+        RegKey::predef(HKEY_CURRENT_USER),
+    ];
 
-    let com_guard = unsafe { ComGuard::new() };
-    if let Err(err) = &com_guard {
-        error!("failed to initialise COM for shortcut parsing: {err}");
-    }
-    // Keep guard alive for the entire traversal.
-    let _guard = com_guard.ok();
-
-    for dir in start_menu_locations() {
-        if !dir.exists() {
-            continue;
-        }
-
-        for entry in WalkDir::new(dir)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(Result::ok)
-        {
-            let path = entry.path();
-            if !is_shortcut(path) {
+    for root in roots {
+        for subkey in UNINSTALL_SUBKEYS {
+            let Ok(uninstall_key) = root.open_subkey(subkey) else {
                 continue;
-            }
+            };
 
-            match parse_shortcut(path) {
-                Ok(Some(app)) => {
+            for entry in uninstall_key.enum_keys().flatten() {
+                let Ok(app_key) = uninstall_key.open_subkey(&entry) else {
+                    continue;
+                };
+
+                if let Some(app) = registry_entry_to_app(&app_key, subkey, &entry) {
                     if seen.insert(app.id.clone()) {
                         applications.push(app);
                     }
                 }
-                Ok(None) => {}
-                Err(err) => warn!("failed to parse shortcut {:?}: {err}", path),
             }
         }
     }
@@ -98,121 +78,136 @@ fn build_win32_index() -> Vec<ApplicationInfo> {
     applications
 }
 
-fn start_menu_locations() -> Vec<PathBuf> {
-    let mut locations = Vec::new();
-
-    if let Ok(appdata) = env::var("APPDATA") {
-        locations.push(PathBuf::from(appdata).join("Microsoft/Windows/Start Menu/Programs"));
+fn registry_entry_to_app(
+    key: &RegKey,
+    parent_path: &str,
+    entry_name: &str,
+) -> Option<ApplicationInfo> {
+    // Skip system or hidden components.
+    if key.get_value::<u32, _>("SystemComponent").ok() == Some(1) {
+        return None;
+    }
+    if key.get_value::<u32, _>("NoDisplay").ok() == Some(1) {
+        return None;
     }
 
-    if let Ok(program_data) = env::var("ProgramData") {
-        locations.push(PathBuf::from(program_data).join("Microsoft/Windows/Start Menu/Programs"));
+    let display_name: String = key
+        .get_value::<String, _>("DisplayName")
+        .ok()?
+        .trim()
+        .to_string();
+    if display_name.is_empty() {
+        return None;
     }
 
-    locations
+    let executable = key
+        .get_value::<String, _>("DisplayIcon")
+        .ok()
+        .and_then(|value| sanitize_executable_path(&value))
+        .or_else(|| {
+            key.get_value::<String, _>("InstallLocation")
+                .ok()
+                .and_then(|value| fallback_executable_from_folder(&value))
+        });
+
+    let path = executable?;
+
+    let description = key
+        .get_value::<String, _>("Publisher")
+        .ok()
+        .filter(|value| !value.trim().is_empty());
+
+    let mut keywords = Vec::new();
+    keywords.push(display_name.clone());
+    if let Some(desc) = description.clone() {
+        keywords.push(desc);
+    }
+    if let Ok(version) = key.get_value::<String, _>("DisplayVersion") {
+        if !version.trim().is_empty() {
+            keywords.push(version);
+        }
+    }
+
+    keywords.retain(|value| !value.trim().is_empty());
+    keywords.sort();
+    keywords.dedup();
+
+    let icon_b64 = extract_icon_from_path(&path, 0).unwrap_or_default();
+
+    Some(ApplicationInfo {
+        id: format!("win32:installed:{}:{}", parent_path, entry_name).to_lowercase(),
+        name: display_name,
+        path,
+        app_type: AppType::Win32,
+        icon_b64,
+        description,
+        keywords,
+    })
 }
 
-fn is_shortcut(path: &Path) -> bool {
-    path.extension()
-        .and_then(OsStr::to_str)
-        .map(|ext| ext.eq_ignore_ascii_case("lnk"))
-        .unwrap_or(false)
+fn sanitize_executable_path(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let without_quotes = trimmed.trim_matches('"');
+    let candidate = without_quotes
+        .split(&[',', ';'][..])
+        .next()
+        .map(str::trim)?;
+    if candidate.is_empty() {
+        return None;
+    }
+
+    let expanded = expand_env_vars(candidate).unwrap_or_else(|| candidate.to_string());
+    let normalized = expanded.replace("\\\\", "\\");
+    let path = Path::new(&normalized);
+    if path.is_file() {
+        Some(normalized)
+    } else {
+        None
+    }
 }
 
-fn parse_shortcut(path: &Path) -> WinResult<Option<ApplicationInfo>> {
-    unsafe {
-        let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)?;
-        let persist: IPersistFile = shell_link.cast()?;
-
-        let wide_path = os_str_to_wide(path.as_os_str());
-        persist.Load(PCWSTR(wide_path.as_ptr()), STGM_READ)?;
-
-        let mut target = [0u16; MAX_PATH as usize];
-        shell_link.GetPath(
-            &mut target,
-            ptr::null_mut::<WIN32_FIND_DATAW>(),
-            (SLGP_UNCPRIORITY.0 | SLGP_RAWPATH.0) as u32,
-        )?;
-
-        let target_path = match wide_to_string(&target) {
-            Some(value) => value,
-            None => return Ok(None),
-        };
-
-        let mut description_buffer = [0u16; 512];
-        let description = if shell_link.GetDescription(&mut description_buffer).is_ok() {
-            wide_to_string(&description_buffer)
-        } else {
-            None
-        };
-
-        let fallback_name = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or_default()
-            .to_string();
-        let name = description
-            .as_ref()
-            .filter(|value| !value.is_empty())
-            .cloned()
-            .unwrap_or(fallback_name);
-
-        let mut keywords = Vec::new();
-        if let Some(desc) = description.clone() {
-            if !desc.is_empty() {
-                keywords.push(desc);
-            }
-        }
-        if let Some(file_name) = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .map(|s| s.to_string())
-        {
-            keywords.push(file_name);
-        }
-        if let Some(target_name) = Path::new(&target_path)
-            .file_name()
-            .and_then(|stem| stem.to_str())
-            .map(|s| s.to_string())
-        {
-            keywords.push(target_name);
-        }
-        keywords.retain(|value| !value.is_empty());
-        keywords.sort();
-        keywords.dedup();
-
-        let mut icon_b64 = String::new();
-        let mut icon_path_buffer = [0u16; MAX_PATH as usize];
-        let mut icon_index = 0;
-        if shell_link
-            .GetIconLocation(&mut icon_path_buffer, &mut icon_index)
-            .is_ok()
-        {
-            if let Some(icon_path) = wide_to_string(&icon_path_buffer) {
-                if let Some(encoded) = extract_icon_from_path(&icon_path, icon_index) {
-                    icon_b64 = encoded;
-                }
-            }
-        }
-
-        if icon_b64.is_empty() {
-            if let Some(encoded) = extract_icon_from_path(&target_path, 0) {
-                icon_b64 = encoded;
-            }
-        }
-
-        let application = ApplicationInfo {
-            id: format!("win32:{}", target_path.to_lowercase()),
-            name,
-            path: target_path,
-            app_type: AppType::Win32,
-            icon_b64,
-            description,
-            keywords,
-        };
-
-        Ok(Some(application))
+fn fallback_executable_from_folder(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
     }
+    let expanded = expand_env_vars(trimmed).unwrap_or_else(|| trimmed.to_string());
+    let normalized_folder = expanded.trim_end_matches(['/', '\\']).to_string();
+    if normalized_folder.is_empty() {
+        return None;
+    }
+    let folder_path = Path::new(&normalized_folder);
+    if !folder_path.is_dir() {
+        return None;
+    }
+
+    let mut candidates = Vec::new();
+    if let Ok(entries) = fs::read_dir(folder_path) {
+        for entry in entries.flatten() {
+            let file_type = entry.file_type().ok();
+            if file_type.is_none_or(|ft| !ft.is_file()) {
+                continue;
+            }
+            let file_path = entry.path();
+            if file_path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("exe"))
+                .unwrap_or(false)
+            {
+                candidates.push(file_path);
+            }
+        }
+    }
+
+    candidates
+        .into_iter()
+        .max_by_key(|path| path.metadata().ok().map(|m| m.len()).unwrap_or(0))
+        .and_then(|path| path.into_os_string().into_string().ok())
 }
 
 async fn enumerate_uwp_apps() -> WinResult<Vec<ApplicationInfo>> {
