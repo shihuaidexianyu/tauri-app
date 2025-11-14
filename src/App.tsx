@@ -43,6 +43,7 @@ function App() {
   const settingsInputRef = useRef<HTMLInputElement | null>(null);
   const latestQueryRef = useRef("");
   const resultRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const resultsListRef = useRef<HTMLUListElement | null>(null);
   const currentWindow = useMemo(() => getCurrentWindow(), []);
   const queryDelayMs = settings?.query_delay_ms ?? 120;
 
@@ -197,15 +198,23 @@ function App() {
     async (event: InputKeyboardEvent<HTMLInputElement>) => {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setSelectedIndex((current: number) =>
-          Math.min(current + 1, Math.max(results.length - 1, 0)),
-        );
+        setSelectedIndex((current: number) => {
+          if (results.length === 0) {
+            return 0;
+          }
+          return (current + 1) % results.length;
+        });
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        setSelectedIndex((current: number) => Math.max(current - 1, 0));
+        setSelectedIndex((current: number) => {
+          if (results.length === 0) {
+            return 0;
+          }
+          return (current - 1 + results.length) % results.length;
+        });
         return;
       }
 
@@ -236,13 +245,21 @@ function App() {
   }, [results]);
 
   useEffect(() => {
-    const target = resultRefs.current[selectedIndex];
-    if (target) {
-      target.scrollIntoView({
-        block: "nearest",
-        inline: "nearest",
-        behavior: "smooth",
-      });
+    const item = resultRefs.current[selectedIndex];
+    const list = resultsListRef.current;
+    if (!item || !list) {
+      return;
+    }
+
+    const itemTop = item.offsetTop;
+    const itemBottom = itemTop + item.offsetHeight;
+    const viewTop = list.scrollTop;
+    const viewBottom = viewTop + list.clientHeight;
+
+    if (itemTop < viewTop) {
+      list.scrollTo({ top: itemTop, behavior: "smooth" });
+    } else if (itemBottom > viewBottom) {
+      list.scrollTo({ top: itemBottom - list.clientHeight, behavior: "smooth" });
     }
   }, [selectedIndex, results]);
 
@@ -393,7 +410,7 @@ function App() {
         className={hasMatches ? "results-wrapper expanded" : "results-wrapper"}
       >
         {hasMatches ? (
-          <ul className="results-list">
+          <ul className="results-list" ref={resultsListRef}>
             {results.map((item: SearchResult, index: number) => (
               <li
                 key={item.id}

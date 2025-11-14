@@ -144,6 +144,7 @@ body,
 .results-wrapper.expanded {
   max-height: 520px;
   opacity: 1;
+  overflow: visible;
 }
 
 .results-list {
@@ -152,6 +153,7 @@ body,
   list-style: none;
   overflow-y: auto;
   overflow-x: hidden;
+  max-height: 460px;
 }
 
 .results-list::-webkit-scrollbar {
