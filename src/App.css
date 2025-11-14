@@ -328,9 +328,9 @@ body,
 .settings-panel {
   position: absolute;
   right: 16px;
-  bottom: 18px;
-  width: min(360px, calc(100% - 32px));
-  padding: 20px;
+  top: 72px;
+  width: min(360px, calc(100% - 48px));
+  padding: 22px 20px 20px;
   border-radius: 16px;
   background: radial-gradient(circle at top right, rgba(123, 140, 255, 0.12), transparent) rgba(10, 12, 20, 0.96);
   box-shadow: 0 28px 50px rgba(0, 0, 0, 0.55);
@@ -346,6 +346,18 @@ body,
   gap: 18px;
   -webkit-app-region: no-drag;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.settings-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
 }
 
 .settings-panel.open {
@@ -412,6 +424,16 @@ body,
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .settings-panel {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    top: 68px;
+    max-height: calc(100vh - 96px);
+  }
 }
 
 .ghost-button,
