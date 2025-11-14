@@ -1,54 +1,102 @@
 mod commands;
+mod config;
+mod hotkey;
 mod indexer;
 mod models;
 mod state;
 mod windows_utils;
 
+use commands::{
+    execute_action, get_settings, submit_query, trigger_reindex, update_hotkey, OPEN_SETTINGS_EVENT,
+};
+use config::AppConfig;
+use hotkey::bind_hotkey;
 use log::warn;
-use tauri::Manager;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-
-use commands::{execute_action, submit_query, trigger_reindex};
 use state::AppState;
+use tauri::{menu::MenuBuilder, tray::TrayIconBuilder, AppHandle, Emitter, Manager};
 
 const MAIN_WINDOW_LABEL: &str = "main";
-const GLOBAL_SHORTCUT: &str = "Alt+Space";
+const TRAY_ID: &str = "main-tray";
+const MENU_SHOW: &str = "tray-show";
+const MENU_HIDE: &str = "tray-hide";
+const MENU_SETTINGS: &str = "tray-settings";
+const MENU_QUIT: &str = "tray-quit";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .manage(AppState::default())
+        .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             submit_query,
             execute_action,
-            trigger_reindex
+            trigger_reindex,
+            get_settings,
+            update_hotkey
         ])
         .setup(|app| {
-            if let Err(err) = app.handle().global_shortcut().on_shortcut(
-                GLOBAL_SHORTCUT,
-                |app_handle, _, event| {
-                    if event.state == ShortcutState::Pressed {
-                        if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                    }
-                },
-            ) {
+            let handle = app.handle();
+            let state = app.state::<AppState>();
+
+            let config = AppConfig::load(handle);
+            if let Ok(mut guard) = state.config.lock() {
+                *guard = config.clone();
+            }
+
+            if let Err(err) = bind_hotkey(handle, &state, &config.global_hotkey, MAIN_WINDOW_LABEL)
+            {
                 warn!(
                     "failed to register global shortcut {}: {}",
-                    GLOBAL_SHORTCUT, err
+                    config.global_hotkey, err
                 );
             }
+
+            let tray_menu = MenuBuilder::new(app)
+                .text(MENU_SHOW, "显示窗口")
+                .text(MENU_HIDE, "隐藏窗口")
+                .separator()
+                .text(MENU_SETTINGS, "打开设置")
+                .separator()
+                .text(MENU_QUIT, "退出")
+                .build()?;
+
+            let tray_builder = if let Some(icon) = app.default_window_icon().cloned() {
+                TrayIconBuilder::with_id(TRAY_ID).icon(icon)
+            } else {
+                TrayIconBuilder::with_id(TRAY_ID)
+            };
+
+            tray_builder
+                .menu(&tray_menu)
+                .tooltip("RustLauncher")
+                .on_menu_event(|app_handle, event| match event.id().as_ref() {
+                    MENU_SHOW => show_window(app_handle),
+                    MENU_HIDE => {
+                        if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+                            let _ = window.hide();
+                        }
+                    }
+                    MENU_SETTINGS => {
+                        let _ = app_handle.emit(OPEN_SETTINGS_EVENT, ());
+                        show_window(app_handle);
+                    }
+                    MENU_QUIT => {
+                        app_handle.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
 
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn show_window(app_handle: &AppHandle) {
+    if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }

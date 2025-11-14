@@ -15,13 +15,16 @@ use windows::{
 use crate::windows_utils::ComGuard;
 
 use crate::{
+    config::AppConfig,
+    hotkey::bind_hotkey,
     indexer,
     models::{AppType, ApplicationInfo, SearchResult},
     state::AppState,
 };
 
 const DEFAULT_RESULT_LIMIT: usize = 8;
-const HIDE_WINDOW_EVENT: &str = "hide_window";
+pub const HIDE_WINDOW_EVENT: &str = "hide_window";
+pub const OPEN_SETTINGS_EVENT: &str = "open_settings";
 
 #[tauri::command]
 pub fn submit_query(query: String, state: State<'_, AppState>) -> Vec<SearchResult> {
@@ -139,6 +142,37 @@ pub async fn trigger_reindex(state: State<'_, AppState>) -> Result<(), String> {
     });
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_settings(state: State<'_, AppState>) -> AppConfig {
+    state
+        .config
+        .lock()
+        .map(|cfg| cfg.clone())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn update_hotkey(
+    hotkey: String,
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<AppConfig, String> {
+    let normalized = hotkey.trim();
+    if normalized.is_empty() {
+        return Err("快捷键不能为空".into());
+    }
+
+    bind_hotkey(&app_handle, &state, normalized, "main")?;
+
+    let mut guard = state
+        .config
+        .lock()
+        .map_err(|_| "无法获取配置".to_string())?;
+    guard.global_hotkey = normalized.to_string();
+    guard.save(&app_handle)?;
+    Ok(guard.clone())
 }
 
 fn launch_win32_app(path: &str) -> Result<(), String> {

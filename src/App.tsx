@@ -21,7 +21,12 @@ type SearchResult = {
   action_payload: string;
 };
 
+type AppSettings = {
+  global_hotkey: string;
+};
+
 const HIDE_WINDOW_EVENT = "hide_window";
+const OPEN_SETTINGS_EVENT = "open_settings";
 
 function App() {
   const [query, setQuery] = useState("");
@@ -29,7 +34,12 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isComposing, setIsComposing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [hotkeyInput, setHotkeyInput] = useState("");
+  const [isSavingHotkey, setIsSavingHotkey] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settingsInputRef = useRef<HTMLInputElement | null>(null);
   const latestQueryRef = useRef("");
   const currentWindow = useMemo(() => getCurrentWindow(), []);
 
@@ -44,6 +54,17 @@ function App() {
     }, 3200);
   }, []);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const appSettings = await invoke<AppSettings>("get_settings");
+      setSettings(appSettings);
+      setHotkeyInput(appSettings.global_hotkey);
+    } catch (error) {
+      console.error("Failed to load settings", error);
+      showToast("加载设置失败");
+    }
+  }, [showToast]);
+
   useEffect(() => {
     return () => {
       if (toastTimerRef.current !== null) {
@@ -53,6 +74,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
     void invoke("trigger_reindex").catch((error: unknown) => {
       console.error("Failed to trigger reindex", error);
       showToast("索引初始化失败");
@@ -60,8 +85,36 @@ function App() {
   }, [showToast]);
 
   useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+
+    const register = async () => {
+      try {
+        unlisten = await listen(OPEN_SETTINGS_EVENT, () => {
+          setIsSettingsOpen(true);
+          void loadSettings();
+        });
+      } catch (error) {
+        console.error("Failed to listen open settings event", error);
+        showToast("设置事件监听失败");
+      }
+    };
+
+    void register();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [loadSettings, showToast]);
+
+  useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (isSettingsOpen) {
+          setIsSettingsOpen(false);
+          return;
+        }
         void currentWindow.hide();
       }
     };
@@ -76,6 +129,7 @@ function App() {
           setQuery("");
           setResults([]);
           setSelectedIndex(0);
+          setIsSettingsOpen(false);
           void currentWindow.hide();
         });
       } catch (error) {
@@ -92,7 +146,14 @@ function App() {
         unlisten();
       }
     };
-  }, [currentWindow, showToast]);
+  }, [currentWindow, isSettingsOpen, showToast]);
+
+  useEffect(() => {
+    if (isSettingsOpen && settingsInputRef.current) {
+      settingsInputRef.current.focus();
+      settingsInputRef.current.select();
+    }
+  }, [isSettingsOpen]);
 
   useEffect(() => {
     if (isComposing) {
@@ -189,8 +250,63 @@ function App() {
     [results, showToast],
   );
 
+  const handleSettingsButtonClick = useCallback(() => {
+    setIsSettingsOpen((current) => {
+      if (current) {
+        return false;
+      }
+      void loadSettings();
+      return true;
+    });
+  }, [loadSettings]);
+
+  const handleSettingsClose = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
+
+  const handleHotkeySave = useCallback(async () => {
+    const trimmed = hotkeyInput.trim();
+    if (!trimmed) {
+      showToast("快捷键不能为空");
+      return;
+    }
+
+    try {
+      setIsSavingHotkey(true);
+      const updated = await invoke<AppSettings>("update_hotkey", {
+        hotkey: trimmed,
+      });
+      setSettings(updated);
+      setHotkeyInput(updated.global_hotkey);
+      showToast("全局热键已更新");
+    } catch (error) {
+      console.error("Failed to update hotkey", error);
+      showToast("更新热键失败");
+    } finally {
+      setIsSavingHotkey(false);
+    }
+  }, [hotkeyInput, showToast]);
+
+  const handleHotkeyKeyDown = useCallback(
+    (event: InputKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleHotkeySave();
+      }
+    },
+    [handleHotkeySave],
+  );
+
   return (
     <div className="container" data-tauri-drag-region>
+      <button
+        type="button"
+        className="settings-button"
+        onClick={handleSettingsButtonClick}
+        aria-label={isSettingsOpen ? "关闭设置" : "打开设置"}
+      >
+        <span aria-hidden="true">⚙</span>
+      </button>
       <input
         type="text"
         className="search-bar"
@@ -242,6 +358,62 @@ function App() {
       ) : (
         <div className="empty-state">开始输入以搜索应用或网页</div>
       )}
+      {isSettingsOpen ? (
+        <button
+          type="button"
+          className="settings-overlay"
+          aria-label="关闭设置"
+          onClick={handleSettingsClose}
+        />
+      ) : null}
+      <div
+        className={isSettingsOpen ? "settings-panel open" : "settings-panel"}
+        aria-hidden={!isSettingsOpen}
+      >
+        <div className="settings-heading">
+          <div>
+            <div className="settings-title">设置</div>
+            <div className="settings-subtitle">
+              当前快捷键：{settings?.global_hotkey ?? "加载中..."}
+            </div>
+          </div>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="hotkey-input">全局快捷键</label>
+          <input
+            id="hotkey-input"
+            type="text"
+            ref={settingsInputRef}
+            value={hotkeyInput}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              setHotkeyInput(event.currentTarget.value)
+            }
+            onKeyDown={handleHotkeyKeyDown}
+            placeholder="例如 Alt+Space"
+            className="settings-input"
+          />
+          <span className="settings-hint">
+            用 + 连接组合键，例如 Ctrl+Shift+P
+          </span>
+        </div>
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={handleSettingsClose}
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => void handleHotkeySave()}
+            disabled={isSavingHotkey}
+          >
+            {isSavingHotkey ? "保存中..." : "保存"}
+          </button>
+        </div>
+      </div>
       {toastMessage ? <div className="toast">{toastMessage}</div> : null}
     </div>
   );

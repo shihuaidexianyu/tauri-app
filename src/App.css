@@ -44,6 +44,31 @@ body,
   padding-bottom: 56px;
 }
 
+.settings-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.settings-button:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 .search-bar {
   width: 100%;
   padding: 18px 22px;
@@ -55,6 +80,7 @@ body,
   outline: none;
   caret-color: #ffffff;
   ime-mode: active;
+  margin-top: 8px;
 }
 
 .search-bar::placeholder {
@@ -172,6 +198,141 @@ body,
   opacity: 0;
   animation: toast-in 0.24s ease forwards;
   z-index: 10;
+}
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 14, 0.55);
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 30;
+  -webkit-app-region: no-drag;
+  backdrop-filter: blur(4px);
+  font-size: 0;
+}
+
+.settings-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  width: min(360px, calc(100% - 32px));
+  padding: 20px;
+  border-radius: 16px;
+  background-color: rgba(15, 15, 24, 0.95);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  pointer-events: none;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  -webkit-app-region: no-drag;
+}
+
+.settings-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.settings-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.settings-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-field label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.settings-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-size: 15px;
+  outline: none;
+}
+
+.settings-input:focus {
+  border-color: rgba(120, 160, 255, 0.9);
+  box-shadow: 0 0 0 2px rgba(120, 160, 255, 0.25);
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.ghost-button,
+.primary-button {
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.ghost-button {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ghost-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.primary-button {
+  background: linear-gradient(120deg, #7b8cff, #6ddcff);
+  color: #0f111a;
+  font-weight: 600;
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.primary-button:not(:disabled):hover {
+  transform: translateY(-1px);
 }
 
 @keyframes toast-in {
