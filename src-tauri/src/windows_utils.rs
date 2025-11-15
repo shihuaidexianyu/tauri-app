@@ -8,7 +8,11 @@ use std::{
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use log::warn;
 use sha1::{Digest, Sha1};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    ActivateKeyboardLayout, LoadKeyboardLayoutW, KLF_ACTIVATE, KLF_SETFORPROCESS,
+};
 use windows::{
     core::{Error, Result, PCWSTR},
     Win32::{
@@ -287,5 +291,24 @@ unsafe fn cleanup_icon(info: &ICONINFO) {
     }
     if !info.hbmMask.is_invalid() {
         let _ = DeleteObject(info.hbmMask);
+    }
+}
+
+/// Switches the current keyboard layout to English (US) so the search框默认使用英文输入法。
+pub(crate) fn switch_to_english_input_method() {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows::core::w;
+        let layout = match LoadKeyboardLayoutW(w!("00000409"), KLF_ACTIVATE) {
+            Ok(value) => value,
+            Err(error) => {
+                warn!("failed to load EN-US keyboard layout: {error:?}");
+                return;
+            }
+        };
+
+        if let Err(error) = ActivateKeyboardLayout(layout, KLF_SETFORPROCESS) {
+            warn!("failed to activate EN-US keyboard layout: {error:?}");
+        }
     }
 }

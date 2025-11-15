@@ -10,7 +10,7 @@ mod windows_utils;
 
 use commands::{
     execute_action, get_settings, submit_query, trigger_reindex, update_hotkey, update_settings,
-    HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT,
+    FOCUS_INPUT_EVENT, HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT,
 };
 use config::AppConfig;
 use hotkey::bind_hotkey;
@@ -30,6 +30,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            show_window(app);
+        }))
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             submit_query,
@@ -114,9 +117,11 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn show_window(app_handle: &AppHandle) {
+pub(crate) fn show_window(app_handle: &AppHandle) {
     if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.show();
         let _ = window.set_focus();
+        windows_utils::switch_to_english_input_method();
+        let _ = app_handle.emit(FOCUS_INPUT_EVENT, ());
     }
 }

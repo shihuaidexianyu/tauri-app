@@ -31,6 +31,7 @@ const MAX_RESULT_LIMIT: u32 = 60;
 pub const HIDE_WINDOW_EVENT: &str = "hide_window";
 pub const OPEN_SETTINGS_EVENT: &str = "open_settings";
 pub const SETTINGS_UPDATED_EVENT: &str = "settings_updated";
+pub const FOCUS_INPUT_EVENT: &str = "focus_input";
 
 #[derive(Debug, Default, Deserialize)]
 pub struct SettingsUpdatePayload {

@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-use crate::state::AppState;
+use crate::{show_window, state::AppState};
 
 pub fn bind_hotkey(
     app_handle: &AppHandle,
@@ -37,8 +37,7 @@ pub fn bind_hotkey(
                         if window.is_visible().unwrap_or(false) {
                             let _ = window.hide();
                         } else {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                            show_window(app_handle);
                         }
                     }
                 }

@@ -20,7 +20,7 @@ import { SearchBar } from "./SearchBar";
 import { ResultList } from "./ResultList";
 import { Toast } from "./Toast";
 import { buildModeConfigsFromSettings, buildPrefixToMode, detectModeFromInput } from "../constants/modes";
-import { HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_UPDATED_EVENT } from "../constants/events";
+import { FOCUS_INPUT_EVENT, HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_UPDATED_EVENT } from "../constants/events";
 import { initialLauncherState, launcherReducer } from "../state/launcherReducer";
 import type { AppSettings, SearchResult } from "../types";
 
@@ -74,6 +74,21 @@ export const LauncherWindow = () => {
         },
         [prefixToMode],
     );
+
+    const focusSearchInput = useCallback(() => {
+        const inputElement = searchInputRef.current;
+        if (!inputElement) {
+            return;
+        }
+
+        inputElement.focus();
+        const caretPosition = inputElement.value.length;
+        try {
+            inputElement.setSelectionRange(caretPosition, caretPosition);
+        } catch (_error) {
+            // 某些输入法可能不支持 setSelectionRange，这里忽略异常即可
+        }
+    }, []);
 
     const resetSearchState = useCallback(() => {
         dispatch({ type: "RESET_SEARCH" });
@@ -155,6 +170,32 @@ export const LauncherWindow = () => {
     useEffect(() => {
         void loadSettings();
     }, [loadSettings]);
+
+    useEffect(() => {
+        focusSearchInput();
+    }, [focusSearchInput]);
+
+    useEffect(() => {
+        let unlisten: UnlistenFn | undefined;
+
+        const register = async () => {
+            try {
+                unlisten = await listen(FOCUS_INPUT_EVENT, () => {
+                    focusSearchInput();
+                });
+            } catch (error) {
+                console.error("Failed to listen focus input event", error);
+            }
+        };
+
+        void register();
+
+        return () => {
+            if (unlisten) {
+                unlisten();
+            }
+        };
+    }, [focusSearchInput]);
 
     useEffect(() => {
         let unlisten: UnlistenFn | undefined;
