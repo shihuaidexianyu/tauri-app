@@ -14,7 +14,8 @@ body,
 body {
     background: var(--page-background);
     font-family: var(--font-family);
-    font-size: var(--font-size-base);
+    /* 再整体缩小一点字体 */
+    font-size: calc(var(--font-size-base) * 0.82);
     line-height: var(--line-height-base);
     font-weight: var(--font-weight-base);
     color: var(--text-primary);
@@ -30,11 +31,12 @@ input {
 }
 
 .flow-window {
-    width: min(900px, calc(100vw - 40px));
-    height: min(620px, calc(100vh - 48px));
-    margin: 24px auto;
-    padding: 18px 22px 22px;
-    border-radius: 22px;
+    /* 主窗口尺寸更贴合内部结果区域 */
+    width: min(720px, calc(100vw - 24px));
+    height: min(480px, calc(100vh - 32px));
+    margin: 12px auto;
+    padding: 10px 14px 14px;
+    border-radius: 16px;
     background: var(--window-surface);
     box-shadow: var(--window-shadow);
     position: relative;
@@ -54,7 +56,7 @@ input {
     content: "";
     position: absolute;
     inset: 0;
-    border-radius: 22px;
+    border-radius: 18px;
     pointer-events: none;
     box-shadow: var(--window-border);
 }
@@ -73,8 +75,8 @@ input {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 10px 18px;
-    border-radius: 16px;
+    padding: 8px 16px;
+    border-radius: 14px;
     border: 1px solid var(--search-shell-border);
     background: var(--search-shell-bg);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 12px 30px rgba(0, 0, 0, 0.45);
@@ -89,7 +91,8 @@ input {
 
 .search-bar {
     flex: 1;
-    font-size: clamp(18px, 3vw, 26px);
+    /* 搜索框字体再缩小一档 */
+    font-size: clamp(15px, 2.4vw, 20px);
     color: inherit;
     background: transparent;
     border: none;
@@ -98,6 +101,8 @@ input {
 }
 
 .search-bar::placeholder {
+    /* 占位符再小一点，不抢主内容的视觉 */
+    font-size: 0.8em;
     color: var(--text-tertiary);
 }
 
@@ -193,8 +198,8 @@ input {
     border: none;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 12px 18px;
+    gap: 10px;
+    padding: 8px 14px;
     /* 增加上下内边距，让整条结果高度更充足 */
     color: inherit;
     cursor: pointer;
@@ -206,9 +211,9 @@ input {
 }
 
 .result-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.08);
     object-fit: cover;
     flex-shrink: 0;
@@ -237,14 +242,14 @@ input {
 }
 
 .result-title {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
     flex: 1;
     min-width: 0;
 }
 
 .result-tag {
-    font-size: 11px;
+    font-size: 9px;
     padding: 2px 8px;
     border-radius: 999px;
     background: var(--result-tag-bg);
@@ -252,7 +257,7 @@ input {
 }
 
 .result-subtitle {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--subtitle-color);
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -260,7 +265,7 @@ input {
 }
 
 .result-shortcut {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--shortcut-color);
     font-variant-numeric: tabular-nums;
 }
