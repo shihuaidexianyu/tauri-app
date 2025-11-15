@@ -44,6 +44,8 @@ pub struct SettingsUpdatePayload {
     pub prefix_app: Option<String>,
     pub prefix_bookmark: Option<String>,
     pub prefix_search: Option<String>,
+    pub launch_on_startup: Option<bool>,
+    pub force_english_input: Option<bool>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -340,6 +342,15 @@ pub fn update_settings(
         guard.enable_bookmark_results = value;
     }
 
+    if let Some(value) = updates.launch_on_startup {
+        crate::windows_utils::configure_launch_on_startup(value)?;
+        guard.launch_on_startup = value;
+    }
+
+    if let Some(value) = updates.force_english_input {
+        guard.force_english_input = value;
+    }
+
     // 同步模式前缀设置（如果前端传入了非空值）
     if let Some(prefix) = updates.prefix_app {
         if !prefix.trim().is_empty() {
@@ -382,6 +393,8 @@ pub fn update_hotkey(
             prefix_app: None,
             prefix_bookmark: None,
             prefix_search: None,
+            launch_on_startup: None,
+            force_english_input: None,
         },
         app_handle,
         state,

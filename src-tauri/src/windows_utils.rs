@@ -31,6 +31,8 @@ use windows::{
         },
     },
 };
+#[cfg(target_os = "windows")]
+use winreg::{enums::*, RegKey};
 
 /// RAII guard for COM initialization on the current thread.
 pub(crate) struct ComGuard {
@@ -310,5 +312,43 @@ pub(crate) fn switch_to_english_input_method() {
         if let Err(error) = ActivateKeyboardLayout(layout, KLF_SETFORPROCESS) {
             warn!("failed to activate EN-US keyboard layout: {error:?}");
         }
+    }
+}
+
+/// Enables or disables Windows auto-start via the "Run" registry key.
+pub(crate) fn configure_launch_on_startup(enable: bool) -> std::result::Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+        const VALUE_NAME: &str = "RustLauncher";
+
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let (key, _) = hkcu.create_subkey(RUN_KEY).map_err(|err| err.to_string())?;
+
+        if enable {
+            let exe_path = env::current_exe().map_err(|err| err.to_string())?;
+            let exe_value = {
+                let raw = exe_path.as_os_str().to_string_lossy();
+                if raw.contains(' ') {
+                    format!("\"{raw}\"")
+                } else {
+                    raw.into_owned()
+                }
+            };
+            key.set_value(VALUE_NAME, &exe_value)
+                .map_err(|err| err.to_string())
+        } else {
+            match key.delete_value(VALUE_NAME) {
+                Ok(_) => Ok(()),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(err) => Err(err.to_string()),
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enable;
+        Ok(())
     }
 }

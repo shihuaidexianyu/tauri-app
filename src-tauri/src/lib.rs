@@ -51,6 +51,10 @@ pub fn run() {
                 *guard = config.clone();
             }
 
+            if let Err(err) = windows_utils::configure_launch_on_startup(config.launch_on_startup) {
+                warn!("failed to sync launch-on-startup setting: {err}");
+            }
+
             if let Err(err) = bind_hotkey(handle, &state, &config.global_hotkey, MAIN_WINDOW_LABEL)
             {
                 warn!(
@@ -121,7 +125,16 @@ pub(crate) fn show_window(app_handle: &AppHandle) {
     if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.show();
         let _ = window.set_focus();
-        windows_utils::switch_to_english_input_method();
+        if should_force_english_input(app_handle) {
+            windows_utils::switch_to_english_input_method();
+        }
         let _ = app_handle.emit(FOCUS_INPUT_EVENT, ());
     }
+}
+
+fn should_force_english_input(app_handle: &AppHandle) -> bool {
+    app_handle
+        .try_state::<AppState>()
+        .and_then(|state| state.config.lock().ok().map(|cfg| cfg.force_english_input))
+        .unwrap_or(true)
 }

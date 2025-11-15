@@ -18,7 +18,11 @@ const SECTION_DEFS: Array<{ id: SettingsSectionId; label: string; description: s
     { id: "about", label: "关于", description: "版本与状态", icon: "ℹ️" },
 ];
 
-type BooleanSettingKey = "enable_app_results" | "enable_bookmark_results";
+type BooleanSettingKey =
+    | "enable_app_results"
+    | "enable_bookmark_results"
+    | "launch_on_startup"
+    | "force_english_input";
 
 const TRACKED_SETTING_KEYS: Array<keyof AppSettings> = [
     "global_hotkey",
@@ -29,6 +33,8 @@ const TRACKED_SETTING_KEYS: Array<keyof AppSettings> = [
     "prefix_app",
     "prefix_bookmark",
     "prefix_search",
+    "launch_on_startup",
+    "force_english_input",
 ];
 
 export const SettingsWindow = () => {
@@ -244,6 +250,38 @@ export const SettingsWindow = () => {
                             }
                         />
                         <span className="settings-hint">范围 {MIN_QUERY_DELAY}~{MAX_QUERY_DELAY} ms</span>
+                    </div>
+                </article>
+                <article className="settings-card">
+                    <header className="settings-card__header">
+                        <div>
+                            <p className="settings-card__title">启动与输入法</p>
+                            <p className="settings-card__subtitle">控制开机自启及唤起时的输入法行为</p>
+                        </div>
+                    </header>
+                    <div className="settings-toggle-group">
+                        <button
+                            type="button"
+                            className={`settings-toggle ${draft.launch_on_startup ? "on" : "off"}`}
+                            onClick={() => toggleBoolean("launch_on_startup")}
+                        >
+                            <span className="toggle-pill" aria-hidden="true" />
+                            <div>
+                                <div className="toggle-title">开机自启动</div>
+                                <div className="toggle-subtitle">登录 Windows 后自动运行 RustLauncher</div>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            className={`settings-toggle ${draft.force_english_input ? "on" : "off"}`}
+                            onClick={() => toggleBoolean("force_english_input")}
+                        >
+                            <span className="toggle-pill" aria-hidden="true" />
+                            <div>
+                                <div className="toggle-title">唤起后切换英文输入</div>
+                                <div className="toggle-subtitle">确保搜索框默认使用英文符号/快捷键</div>
+                            </div>
+                        </button>
                     </div>
                 </article>
             </div>

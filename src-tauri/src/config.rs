@@ -23,6 +23,10 @@ pub struct AppConfig {
     pub prefix_bookmark: String,
     #[serde(default = "default_prefix_search")]
     pub prefix_search: String,
+    #[serde(default = "default_launch_on_startup")]
+    pub launch_on_startup: bool,
+    #[serde(default = "default_force_english_input")]
+    pub force_english_input: bool,
 }
 
 impl Default for AppConfig {
@@ -36,6 +40,8 @@ impl Default for AppConfig {
             prefix_app: default_prefix_app(),
             prefix_bookmark: default_prefix_bookmark(),
             prefix_search: default_prefix_search(),
+            launch_on_startup: default_launch_on_startup(),
+            force_english_input: default_force_english_input(),
         }
     }
 }
@@ -66,6 +72,14 @@ fn default_prefix_bookmark() -> String {
 
 fn default_prefix_search() -> String {
     "s".to_string()
+}
+
+const fn default_launch_on_startup() -> bool {
+    false
+}
+
+const fn default_force_english_input() -> bool {
+    true
 }
 
 impl AppConfig {
