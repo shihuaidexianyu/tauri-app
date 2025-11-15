@@ -157,34 +157,50 @@ input {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    position: relative;
 }
 
-.result-list,
+.content-area,
+.results-panel,
+.preview-panel,
+.result-item,
+.result-button,
+.status-row,
+.empty-hint,
+.preview-card,
+.preview-actions button,
+.result-meta,
+.result-shortcut {
+    -webkit-app-region: no-drag;
+}
+
 .result-virtual-wrapper {
     flex: 1;
-}
-
-.result-virtual-wrapper {
+    min-height: 0;
     margin: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    padding-right: 10px;
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
+    overscroll-behavior: contain;
+    -webkit-app-region: no-drag;
 }
 
 .result-virtual-wrapper::-webkit-scrollbar {
-    width: 12px;
+    width: 10px;
 }
 
 .result-virtual-wrapper::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--scrollbar-track);
+    border-radius: 999px;
 }
 
 .result-virtual-wrapper::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
     border-radius: 999px;
-    border: 3px solid rgba(0, 0, 0, 0);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(0, 0, 0, 0);
+    box-shadow: 0 2px 12px rgba(80, 118, 255, 0.35);
 }
 
 .result-virtual-wrapper::-webkit-scrollbar-thumb:hover {

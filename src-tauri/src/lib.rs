@@ -83,7 +83,6 @@ pub fn run() {
                     }
                     MENU_SETTINGS => {
                         let _ = app_handle.emit(OPEN_SETTINGS_EVENT, ());
-                        show_window(app_handle);
                     }
                     MENU_QUIT => {
                         app_handle.exit(0);
