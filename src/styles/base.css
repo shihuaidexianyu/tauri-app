@@ -130,11 +130,6 @@ input {
 
 .content-area,
 .results-panel,
-.result-list__container,
-.result-list,
-.result-scrollbar,
-.result-scrollbar__track,
-.result-scrollbar__thumb,
 .result-item,
 .result-button,
 .status-row,
@@ -144,65 +139,46 @@ input {
     -webkit-app-region: no-drag;
 }
 
-.result-list__container {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-}
-
 .result-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    /* 条目之间留更多空隙，避免视觉挤压 */
     overflow-y: auto;
     flex: 1;
     min-height: 0;
-    padding-right: 24px;
-    scrollbar-width: none;
+    padding-right: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     overscroll-behavior: contain;
 }
 
 .result-list::-webkit-scrollbar {
-    display: none;
+    width: 10px;
 }
 
-.result-scrollbar {
-    position: absolute;
-    top: 6px;
-    bottom: 6px;
-    right: 6px;
-    width: 12px;
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-}
-
-.result-scrollbar__track {
-    width: 6px;
+.result-list::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(12px);
-    position: relative;
-    height: 100%;
 }
 
-.result-scrollbar__thumb {
-    width: 100%;
-    border-radius: inherit;
+.result-list::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
-    box-shadow: 0 6px 18px rgba(80, 118, 255, 0.45);
-    transform: translateY(0);
-    will-change: transform;
+    border-radius: 999px;
+}
+
+.result-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
 }
 
 .result-item {
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.015);
 }
 
 .result-item.active {
@@ -217,7 +193,8 @@ input {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 10px 14px;
+    padding: 12px 18px;
+    /* 增加上下内边距，让整条结果高度更充足 */
     color: inherit;
     cursor: pointer;
     text-align: left;
@@ -228,9 +205,9 @@ input {
 }
 
 .result-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.08);
     object-fit: cover;
     flex-shrink: 0;
