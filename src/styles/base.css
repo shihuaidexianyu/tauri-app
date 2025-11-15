@@ -176,7 +176,8 @@ input {
 
 .result-item {
     border-radius: 12px;
-    overflow: hidden;
+    /* 保留圆角但不要强制裁剪内容，避免文本被“切片” */
+    overflow: visible;
     border: 1px solid transparent;
     background: rgba(255, 255, 255, 0.015);
 }
