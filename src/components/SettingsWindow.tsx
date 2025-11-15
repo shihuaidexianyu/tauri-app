@@ -11,22 +11,20 @@ const MAX_QUERY_DELAY = 2000;
 const MIN_RESULT_LIMIT = 10;
 const MAX_RESULT_LIMIT = 60;
 
-type SettingsSectionId = "general" | "search" | "appearance" | "about";
+type SettingsSectionId = "general" | "search" | "about";
 
 const SECTION_DEFS: Array<{ id: SettingsSectionId; label: string; description: string; icon: string }> = [
     { id: "general", label: "常规", description: "呼出快捷键 & 防抖", icon: "⌘" },
     { id: "search", label: "搜索", description: "结果来源 / 数量", icon: "🔍" },
-    { id: "appearance", label: "外观", description: "Flow 风格预览", icon: "✨" },
     { id: "about", label: "关于", description: "版本与状态", icon: "ℹ️" },
 ];
 
-type BooleanSettingKey = "enable_preview_panel" | "enable_app_results" | "enable_bookmark_results";
+type BooleanSettingKey = "enable_app_results" | "enable_bookmark_results";
 
 const TRACKED_SETTING_KEYS: Array<keyof AppSettings> = [
     "global_hotkey",
     "query_delay_ms",
     "max_results",
-    "enable_preview_panel",
     "enable_app_results",
     "enable_bookmark_results",
 ];
@@ -307,39 +305,6 @@ export const SettingsWindow = () => {
         );
     };
 
-    const renderAppearanceSection = () => {
-        if (!draft) {
-            return renderPlaceholder();
-        }
-
-        return (
-            <div className="settings-section">
-                <article className="settings-card">
-                    <header className="settings-card__header">
-                        <div>
-                            <p className="settings-card__title">预览面板</p>
-                            <p className="settings-card__subtitle">Flow Launcher 风格的右侧详情</p>
-                        </div>
-                        <span className="settings-chip">UI</span>
-                    </header>
-                    <div className="settings-toggle-group">
-                        <button
-                            type="button"
-                            className={`settings-toggle ${draft.enable_preview_panel ? "on" : "off"}`}
-                            onClick={() => toggleBoolean("enable_preview_panel")}
-                        >
-                            <span className="toggle-pill" aria-hidden="true" />
-                            <div>
-                                <div className="toggle-title">显示预览边栏</div>
-                                <div className="toggle-subtitle">关闭后仅保留列表，适合极简模式</div>
-                            </div>
-                        </button>
-                    </div>
-                </article>
-            </div>
-        );
-    };
-
     const renderAboutSection = () => {
         const summary = draft ?? settings;
         return (
@@ -370,8 +335,6 @@ export const SettingsWindow = () => {
                 return renderGeneralSection();
             case "search":
                 return renderSearchSection();
-            case "appearance":
-                return renderAppearanceSection();
             case "about":
                 return renderAboutSection();
             default:

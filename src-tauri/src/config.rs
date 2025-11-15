@@ -13,8 +13,6 @@ pub struct AppConfig {
     pub query_delay_ms: u64,
     #[serde(default = "default_max_results")]
     pub max_results: u32,
-    #[serde(default = "default_enable_preview")]
-    pub enable_preview_panel: bool,
     #[serde(default = "default_enable_app_results")]
     pub enable_app_results: bool,
     #[serde(default = "default_enable_bookmark_results")]
@@ -27,7 +25,6 @@ impl Default for AppConfig {
             global_hotkey: "Alt+Space".to_string(),
             query_delay_ms: default_query_delay(),
             max_results: default_max_results(),
-            enable_preview_panel: default_enable_preview(),
             enable_app_results: default_enable_app_results(),
             enable_bookmark_results: default_enable_bookmark_results(),
         }
@@ -40,10 +37,6 @@ const fn default_query_delay() -> u64 {
 
 const fn default_max_results() -> u32 {
     40
-}
-
-const fn default_enable_preview() -> bool {
-    true
 }
 
 const fn default_enable_app_results() -> bool {

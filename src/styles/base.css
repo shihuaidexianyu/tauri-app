@@ -4,16 +4,8 @@
     font-weight: 600;
 }
 
-.preview-panel--ghost {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    opacity: 0.7;
-}
-
 .content-area--single {
-    grid-template-columns: 1fr;
+    flex: 1;
 }
 
 @media (max-width: 720px) {
@@ -140,15 +132,14 @@ input {
 }
 
 .content-area {
-    display: grid;
-    grid-template-columns: minmax(0, 60%) minmax(240px, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 18px;
     flex: 1;
     overflow: hidden;
 }
 
-.results-panel,
-.preview-panel {
+.results-panel {
     border-radius: 18px;
     border: 1px solid var(--panel-border);
     background: var(--panel-surface);
@@ -162,49 +153,13 @@ input {
 
 .content-area,
 .results-panel,
-.preview-panel,
 .result-item,
 .result-button,
 .status-row,
 .empty-hint,
-.preview-card,
-.preview-actions button,
 .result-meta,
 .result-shortcut {
     -webkit-app-region: no-drag;
-}
-
-.result-virtual-wrapper {
-    flex: 1;
-    min-height: 0;
-    margin: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 10px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-    overscroll-behavior: contain;
-    -webkit-app-region: no-drag;
-}
-
-.result-virtual-wrapper::-webkit-scrollbar {
-    width: 10px;
-}
-
-.result-virtual-wrapper::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
-    border-radius: 999px;
-}
-
-.result-virtual-wrapper::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 999px;
-    border: 2px solid rgba(0, 0, 0, 0);
-    box-shadow: 0 2px 12px rgba(80, 118, 255, 0.35);
-}
-
-.result-virtual-wrapper::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
 }
 
 .result-list {
@@ -215,6 +170,32 @@ input {
     flex-direction: column;
     gap: 8px;
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-right: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    overscroll-behavior: contain;
+}
+
+.result-list::-webkit-scrollbar {
+    width: 12px;
+}
+
+.result-list::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 999px;
+}
+
+.result-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+    border: 3px solid rgba(0, 0, 0, 0);
+    box-shadow: 0 4px 14px rgba(80, 118, 255, 0.4);
+}
+
+.result-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
 }
 
 .result-item {
@@ -254,8 +235,7 @@ input {
     flex-shrink: 0;
 }
 
-.result-icon.placeholder,
-.preview-icon.placeholder {
+.result-icon.placeholder {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -320,74 +300,6 @@ input {
     justify-content: space-between;
     font-size: 12px;
     color: var(--status-text);
-}
-
-.preview-panel {
-    min-height: 0;
-}
-
-.preview-panel.muted {
-    opacity: 0.6;
-}
-
-.preview-card {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.preview-icon {
-    width: 88px;
-    height: 88px;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.08);
-    object-fit: cover;
-}
-
-.preview-text {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.preview-title {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.preview-subtitle {
-    font-size: 13px;
-    color: var(--preview-muted);
-}
-
-.preview-meta {
-    display: flex;
-    gap: 10px;
-    font-size: 12px;
-}
-
-.preview-tag {
-    padding: 2px 10px;
-    border-radius: 999px;
-    background: var(--result-tag-bg);
-}
-
-.preview-score {
-    color: var(--preview-muted);
-}
-
-.preview-actions {
-    margin-top: 4px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.preview-placeholder {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    color: var(--preview-muted);
 }
 
 .ghost-button,
@@ -753,16 +665,9 @@ input {
     font-weight: 600;
 }
 
-.preview-panel--ghost {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    opacity: 0.7;
-}
 
 .content-area--single {
-    grid-template-columns: 1fr;
+    flex: 1;
 }
 
 @media (max-width: 720px) {
@@ -783,10 +688,6 @@ input {
 @media (max-width: 960px) {
     .flow-window {
         height: auto;
-    }
-
-    .content-area {
-        grid-template-columns: 1fr;
     }
 }
 

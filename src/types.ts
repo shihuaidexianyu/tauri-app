@@ -11,7 +11,6 @@ export type AppSettings = {
     global_hotkey: string;
     query_delay_ms: number;
     max_results: number;
-    enable_preview_panel: boolean;
     enable_app_results: boolean;
     enable_bookmark_results: boolean;
 };

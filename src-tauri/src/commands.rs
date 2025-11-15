@@ -37,7 +37,6 @@ pub struct SettingsUpdatePayload {
     pub global_hotkey: Option<String>,
     pub query_delay_ms: Option<u64>,
     pub max_results: Option<u32>,
-    pub enable_preview_panel: Option<bool>,
     pub enable_app_results: Option<bool>,
     pub enable_bookmark_results: Option<bool>,
 }
@@ -319,10 +318,6 @@ pub fn update_settings(
         guard.max_results = normalize_max_results(updates.max_results, guard.max_results);
     }
 
-    if let Some(value) = updates.enable_preview_panel {
-        guard.enable_preview_panel = value;
-    }
-
     if let Some(value) = updates.enable_app_results {
         guard.enable_app_results = value;
     }
@@ -349,7 +344,6 @@ pub fn update_hotkey(
             global_hotkey: Some(hotkey),
             query_delay_ms,
             max_results: None,
-            enable_preview_panel: None,
             enable_app_results: None,
             enable_bookmark_results: None,
         },

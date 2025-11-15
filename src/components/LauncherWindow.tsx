@@ -18,13 +18,33 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 
 import { SearchBar } from "./SearchBar";
 import { ResultList } from "./ResultList";
-import { PreviewPane } from "./PreviewPane";
 import { Toast } from "./Toast";
 import { MODE_CONFIGS, detectModeFromInput } from "../constants/modes";
 import { HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_UPDATED_EVENT } from "../constants/events";
 import { initialLauncherState, launcherReducer } from "../state/launcherReducer";
 import type { AppSettings, SearchResult } from "../types";
-import { pickFallbackIcon } from "../utils/fallbackIcon";
+
+const SETTINGS_WINDOW_LABEL = "settings";
+
+let trackedSettingsWindow: WebviewWindow | null = null;
+
+const resolveTrackedSettingsWindow = async (): Promise<WebviewWindow | null> => {
+    if (trackedSettingsWindow) {
+        return trackedSettingsWindow;
+    }
+
+    try {
+        const maybeWindow = await Promise.resolve(WebviewWindow.getByLabel(SETTINGS_WINDOW_LABEL));
+        if (maybeWindow) {
+            trackedSettingsWindow = maybeWindow;
+            return maybeWindow;
+        }
+    } catch (error) {
+        console.error("Failed to lookup existing settings window", error);
+    }
+
+    return null;
+};
 
 export const LauncherWindow = () => {
     const [state, dispatch] = useReducer(launcherReducer, initialLauncherState);
@@ -73,7 +93,7 @@ export const LauncherWindow = () => {
     }, [showToast]);
 
     const openSettingsWindow = useCallback(async () => {
-        const existing = await WebviewWindow.getByLabel("settings");
+        const existing = await resolveTrackedSettingsWindow();
         if (existing) {
             try {
                 await existing.show();
@@ -82,11 +102,11 @@ export const LauncherWindow = () => {
             } catch (error) {
                 console.error("Failed to focus settings window", error);
                 showToast("设置窗口切换失败");
-                return;
+                trackedSettingsWindow = null;
             }
         }
 
-        const windowRef = new WebviewWindow("settings", {
+        const windowRef = new WebviewWindow(SETTINGS_WINDOW_LABEL, {
             title: "RustLauncher 设置",
             url: "index.html?window=settings",
             width: 960,
@@ -99,10 +119,20 @@ export const LauncherWindow = () => {
             alwaysOnTop: false,
             transparent: false,
         });
+        trackedSettingsWindow = windowRef;
+
+        windowRef.once("tauri://destroyed", () => {
+            if (trackedSettingsWindow?.label === SETTINGS_WINDOW_LABEL) {
+                trackedSettingsWindow = null;
+            }
+        });
 
         windowRef.once("tauri://error", (event) => {
             console.error("Settings window error", event.payload);
             showToast("无法打开设置窗口");
+            if (trackedSettingsWindow?.label === SETTINGS_WINDOW_LABEL) {
+                trackedSettingsWindow = null;
+            }
         });
     }, [showToast]);
 
@@ -321,10 +351,6 @@ export const LauncherWindow = () => {
         }
     }, []);
 
-    const handleSettingsButtonClick = useCallback(() => {
-        void openSettingsWindow();
-    }, [openSettingsWindow]);
-
     const handleResultSelect = useCallback((index: number) => {
         dispatch({ type: "SET_SELECTED_INDEX", payload: index });
     }, []);
@@ -340,12 +366,6 @@ export const LauncherWindow = () => {
     const trimmedInput = state.inputValue.trim();
     const hasQuery = trimmedInput.length > 0;
     const hasMatches = resultsCount > 0;
-    const activeResult = hasMatches ? state.results[state.selectedIndex] : null;
-    const fallbackVisual = activeResult ? pickFallbackIcon(activeResult) : null;
-    const activeResultTag = activeResult ? resolveResultTag(activeResult) : null;
-    const disableNav = resultsCount <= 1;
-    const showPreviewPane = state.settings?.enable_preview_panel ?? true;
-    const contentAreaClassName = showPreviewPane ? "content-area" : "content-area content-area--single";
     const isIdle = !hasQuery && !state.isModePrefixOnly;
     const windowClassName = isIdle ? "flow-window flow-window--compact" : "flow-window";
 
@@ -375,7 +395,7 @@ export const LauncherWindow = () => {
                 ) : null}
             </section>
             {isIdle ? null : (
-                <section className={contentAreaClassName}>
+                <section className="content-area content-area--single">
                     <div className="results-panel">
                         {hasMatches ? (
                             <ResultList
@@ -403,35 +423,6 @@ export const LauncherWindow = () => {
                             </span>
                         </div>
                     </div>
-                    {showPreviewPane ? (
-                        <PreviewPane
-                            result={activeResult}
-                            fallbackVisual={fallbackVisual}
-                            tagLabel={activeResultTag}
-                            onPrev={() => stepSelection(-1)}
-                            onNext={() => stepSelection(1)}
-                            onExecute={() => {
-                                if (activeResult) {
-                                    void executeSelected(activeResult);
-                                }
-                            }}
-                            disableNavigation={disableNav}
-                        />
-                    ) : (
-                        <div className="preview-panel preview-panel--ghost">
-                            <div className="preview-placeholder">
-                                <div className="preview-title">预览面板已隐藏</div>
-                                <div className="preview-subtitle">前往 设置 → 外观 可重新启用</div>
-                                <button
-                                    type="button"
-                                    className="ghost-button"
-                                    onClick={handleSettingsButtonClick}
-                                >
-                                    打开设置
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </section>
             )}
             {state.toastMessage ? <Toast message={state.toastMessage} /> : null}
