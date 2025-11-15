@@ -39,6 +39,10 @@ pub struct SettingsUpdatePayload {
     pub max_results: Option<u32>,
     pub enable_app_results: Option<bool>,
     pub enable_bookmark_results: Option<bool>,
+    // 新增：三种模式的可配置前缀
+    pub prefix_app: Option<String>,
+    pub prefix_bookmark: Option<String>,
+    pub prefix_search: Option<String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,6 +50,7 @@ enum QueryMode {
     All,
     Bookmark,
     Application,
+    Search,
 }
 
 impl QueryMode {
@@ -57,6 +62,7 @@ impl QueryMode {
         {
             Some("bookmark") | Some("bookmarks") | Some("b") => Self::Bookmark,
             Some("app") | Some("apps") | Some("application") | Some("r") => Self::Application,
+            Some("search") | Some("s") => Self::Search,
             _ => Self::All,
         }
     }
@@ -67,6 +73,10 @@ impl QueryMode {
 
     fn allows_applications(&self) -> bool {
         matches!(self, Self::All | Self::Application)
+    }
+
+    fn allows_web_search(&self) -> bool {
+        matches!(self, Self::All | Self::Search)
     }
 }
 
@@ -193,20 +203,23 @@ pub fn submit_query(
         results.truncate(result_limit);
     }
 
-    let search_id = format!("search-{counter}");
-    let search_url = format!(
-        "https://google.com/search?q={}",
-        urlencoding::encode(trimmed)
-    );
-    pending_actions.insert(search_id.clone(), PendingAction::Search(search_url.clone()));
-    results.push(SearchResult {
-        id: search_id,
-        title: format!("在 Google 上搜索: {trimmed}"),
-        subtitle: String::from("Google 搜索"),
-        icon: String::new(),
-        score: i64::MIN,
-        action_id: "search".to_string(),
-    });
+    // 仅在允许的模式下追加 Web 搜索结果
+    if query_mode.allows_web_search() {
+        let search_id = format!("search-{counter}");
+        let search_url = format!(
+            "https://google.com/search?q={}",
+            urlencoding::encode(trimmed)
+        );
+        pending_actions.insert(search_id.clone(), PendingAction::Search(search_url.clone()));
+        results.push(SearchResult {
+            id: search_id,
+            title: format!("在 Google 上搜索: {trimmed}"),
+            subtitle: String::from("Google 搜索"),
+            icon: String::new(),
+            score: i64::MIN,
+            action_id: "search".to_string(),
+        });
+    }
 
     if let Ok(mut guard) = state.pending_actions.lock() {
         guard.clear();
@@ -326,6 +339,25 @@ pub fn update_settings(
         guard.enable_bookmark_results = value;
     }
 
+    // 同步模式前缀设置（如果前端传入了非空值）
+    if let Some(prefix) = updates.prefix_app {
+        if !prefix.trim().is_empty() {
+            guard.prefix_app = prefix.trim().to_string();
+        }
+    }
+
+    if let Some(prefix) = updates.prefix_bookmark {
+        if !prefix.trim().is_empty() {
+            guard.prefix_bookmark = prefix.trim().to_string();
+        }
+    }
+
+    if let Some(prefix) = updates.prefix_search {
+        if !prefix.trim().is_empty() {
+            guard.prefix_search = prefix.trim().to_string();
+        }
+    }
+
     guard.save(&app_handle)?;
     let snapshot = guard.clone();
     let _ = app_handle.emit(SETTINGS_UPDATED_EVENT, snapshot.clone());
@@ -346,6 +378,9 @@ pub fn update_hotkey(
             max_results: None,
             enable_app_results: None,
             enable_bookmark_results: None,
+            prefix_app: None,
+            prefix_bookmark: None,
+            prefix_search: None,
         },
         app_handle,
         state,

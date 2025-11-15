@@ -1,4 +1,4 @@
-import { MODE_CONFIGS } from "../constants/modes";
+import { DEFAULT_MODE_CONFIGS } from "../constants/modes";
 import type { LauncherAction, LauncherState } from "../types";
 
 export const initialLauncherState: LauncherState = {
@@ -8,7 +8,7 @@ export const initialLauncherState: LauncherState = {
     selectedIndex: 0,
     toastMessage: null,
     settings: null,
-    activeMode: MODE_CONFIGS.all,
+    activeMode: DEFAULT_MODE_CONFIGS.all,
     isModePrefixOnly: false,
     isComposing: false,
 };
@@ -58,7 +58,7 @@ export const launcherReducer = (
                 searchQuery: "",
                 results: [],
                 selectedIndex: 0,
-                activeMode: MODE_CONFIGS.all,
+                activeMode: DEFAULT_MODE_CONFIGS.all,
                 isModePrefixOnly: false,
             };
         default:

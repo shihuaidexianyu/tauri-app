@@ -17,6 +17,12 @@ pub struct AppConfig {
     pub enable_app_results: bool,
     #[serde(default = "default_enable_bookmark_results")]
     pub enable_bookmark_results: bool,
+    #[serde(default = "default_prefix_app")]
+    pub prefix_app: String,
+    #[serde(default = "default_prefix_bookmark")]
+    pub prefix_bookmark: String,
+    #[serde(default = "default_prefix_search")]
+    pub prefix_search: String,
 }
 
 impl Default for AppConfig {
@@ -27,6 +33,9 @@ impl Default for AppConfig {
             max_results: default_max_results(),
             enable_app_results: default_enable_app_results(),
             enable_bookmark_results: default_enable_bookmark_results(),
+            prefix_app: default_prefix_app(),
+            prefix_bookmark: default_prefix_bookmark(),
+            prefix_search: default_prefix_search(),
         }
     }
 }
@@ -45,6 +54,18 @@ const fn default_enable_app_results() -> bool {
 
 const fn default_enable_bookmark_results() -> bool {
     true
+}
+
+fn default_prefix_app() -> String {
+    "r".to_string()
+}
+
+fn default_prefix_bookmark() -> String {
+    "b".to_string()
+}
+
+fn default_prefix_search() -> String {
+    "s".to_string()
 }
 
 impl AppConfig {

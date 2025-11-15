@@ -27,6 +27,9 @@ const TRACKED_SETTING_KEYS: Array<keyof AppSettings> = [
     "max_results",
     "enable_app_results",
     "enable_bookmark_results",
+    "prefix_app",
+    "prefix_bookmark",
+    "prefix_search",
 ];
 
 export const SettingsWindow = () => {
@@ -113,6 +116,23 @@ export const SettingsWindow = () => {
         }
         if (!draft.enable_app_results && !draft.enable_bookmark_results) {
             return "至少保留一个结果来源";
+        }
+        const validatePrefix = (value: string, label: string) => {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return `${label} 前缀不能为空`;
+            }
+            if (!/^[a-zA-Z]$/.test(trimmed)) {
+                return `${label} 前缀需为单个字母`;
+            }
+            return null;
+        };
+        const prefixError =
+            validatePrefix(draft.prefix_app, "应用模式") ||
+            validatePrefix(draft.prefix_bookmark, "书签模式") ||
+            validatePrefix(draft.prefix_search, "搜索模式");
+        if (prefixError) {
+            return prefixError;
         }
         return null;
     }, [draft]);
@@ -298,6 +318,64 @@ export const SettingsWindow = () => {
                         <div className="settings-slider__scale">
                             <span>{MIN_RESULT_LIMIT} 条</span>
                             <span>{MAX_RESULT_LIMIT} 条</span>
+                        </div>
+                    </div>
+                </article>
+                <article className="settings-card">
+                    <header className="settings-card__header">
+                        <div>
+                            <p className="settings-card__title">模式前缀</p>
+                            <p className="settings-card__subtitle">自定义 a/b/s 风格的模式切换前缀</p>
+                        </div>
+                    </header>
+                    <div className="settings-prefix-grid">
+                        <div className="settings-prefix-row">
+                            <label className="settings-prefix-label" htmlFor="prefix_app">
+                                应用模式
+                            </label>
+                            <input
+                                id="prefix_app"
+                                type="text"
+                                maxLength={1}
+                                className="settings-input settings-input--small"
+                                value={draft.prefix_app}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    updateDraftValue("prefix_app", event.currentTarget.value)
+                                }
+                            />
+                            <span className="settings-hint">例如 "a"，输入 a 空格 即切换</span>
+                        </div>
+                        <div className="settings-prefix-row">
+                            <label className="settings-prefix-label" htmlFor="prefix_bookmark">
+                                书签模式
+                            </label>
+                            <input
+                                id="prefix_bookmark"
+                                type="text"
+                                maxLength={1}
+                                className="settings-input settings-input--small"
+                                value={draft.prefix_bookmark}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    updateDraftValue("prefix_bookmark", event.currentTarget.value)
+                                }
+                            />
+                            <span className="settings-hint">例如 "b"</span>
+                        </div>
+                        <div className="settings-prefix-row">
+                            <label className="settings-prefix-label" htmlFor="prefix_search">
+                                搜索模式
+                            </label>
+                            <input
+                                id="prefix_search"
+                                type="text"
+                                maxLength={1}
+                                className="settings-input settings-input--small"
+                                value={draft.prefix_search}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    updateDraftValue("prefix_search", event.currentTarget.value)
+                                }
+                            />
+                            <span className="settings-hint">例如 "s"</span>
                         </div>
                     </div>
                 </article>

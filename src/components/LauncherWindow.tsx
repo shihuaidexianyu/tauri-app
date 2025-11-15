@@ -19,7 +19,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { SearchBar } from "./SearchBar";
 import { ResultList } from "./ResultList";
 import { Toast } from "./Toast";
-import { MODE_CONFIGS, detectModeFromInput } from "../constants/modes";
+import { buildModeConfigsFromSettings, buildPrefixToMode, detectModeFromInput } from "../constants/modes";
 import { HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_UPDATED_EVENT } from "../constants/events";
 import { initialLauncherState, launcherReducer } from "../state/launcherReducer";
 import type { AppSettings, SearchResult } from "../types";
@@ -53,19 +53,27 @@ export const LauncherWindow = () => {
     const latestQueryRef = useRef("");
     const currentWindow = useMemo(() => getCurrentWindow(), []);
     const queryDelayMs = state.settings?.query_delay_ms ?? 120;
+    const modeConfigs = useMemo(
+        () => buildModeConfigsFromSettings(state.settings),
+        [state.settings],
+    );
+    const prefixToMode = useMemo(() => buildPrefixToMode(modeConfigs), [modeConfigs]);
 
-    const applyInputValue = useCallback((value: string) => {
-        const detection = detectModeFromInput(value);
-        dispatch({
-            type: "SET_INPUT",
-            payload: {
-                inputValue: value,
-                searchQuery: detection.cleanedQuery,
-                activeMode: detection.mode,
-                isModePrefixOnly: detection.isPrefixOnly,
-            },
-        });
-    }, []);
+    const applyInputValue = useCallback(
+        (value: string) => {
+            const detection = detectModeFromInput(value, prefixToMode);
+            dispatch({
+                type: "SET_INPUT",
+                payload: {
+                    inputValue: value,
+                    searchQuery: detection.cleanedQuery,
+                    activeMode: detection.mode,
+                    isModePrefixOnly: detection.isPrefixOnly,
+                },
+            });
+        },
+        [prefixToMode],
+    );
 
     const resetSearchState = useCallback(() => {
         dispatch({ type: "RESET_SEARCH" });
@@ -253,7 +261,7 @@ export const LauncherWindow = () => {
         }
 
         const payload: { query: string; mode?: string } = { query: trimmed };
-        if (state.activeMode.id !== MODE_CONFIGS.all.id) {
+        if (state.activeMode.id !== modeConfigs.all.id) {
             payload.mode = state.activeMode.id;
         }
 
@@ -285,13 +293,15 @@ export const LauncherWindow = () => {
                 await invoke("execute_action", {
                     id: selected.id,
                 });
-                resetSearchState();
+                // 执行完成后，通过统一的隐藏事件让窗口隐藏并重置搜索
+                const hideEvent = new CustomEvent(HIDE_WINDOW_EVENT);
+                window.dispatchEvent(hideEvent);
             } catch (error) {
                 console.error("Failed to execute action", error);
                 showToast("执行失败，请检查目标是否存在");
             }
         },
-        [resetSearchState, showToast],
+        [showToast],
     );
 
     const stepSelection = useCallback(

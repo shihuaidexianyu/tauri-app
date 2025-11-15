@@ -13,9 +13,13 @@ export type AppSettings = {
     max_results: number;
     enable_app_results: boolean;
     enable_bookmark_results: boolean;
+    // 三种模式的前缀，可由设置页面自定义
+    prefix_app: string;
+    prefix_bookmark: string;
+    prefix_search: string;
 };
 
-export type ModeId = "all" | "bookmark" | "app";
+export type ModeId = "all" | "bookmark" | "app" | "search";
 
 export type ModeConfig = {
     id: ModeId;
