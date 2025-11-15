@@ -38,7 +38,11 @@ body,
   margin: 16px auto;
   padding: 10px 16px 16px;
   border-radius: 18px;
-  background: linear-gradient(145deg, rgba(25, 29, 42, 0.97), rgba(13, 15, 22, 0.96));
+  background: linear-gradient(
+    145deg,
+    rgba(25, 29, 42, 0.97),
+    rgba(13, 15, 22, 0.96)
+  );
   box-shadow:
     0 26px 52px rgba(0, 0, 0, 0.6),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03);

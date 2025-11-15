@@ -17,6 +17,8 @@ enum Command {
     Fmt,
     /// Run lint and static analysis checks
     Check,
+    /// Build production bundles (frontend + Tauri)
+    Package,
 }
 
 fn main() -> Result<()> {
@@ -28,22 +30,23 @@ fn main() -> Result<()> {
     match cli.command {
         Command::Fmt => run_fmt(&shell),
         Command::Check => run_check(&shell),
+        Command::Package => run_package(&shell),
     }
 }
 
 fn run_fmt(shell: &Shell) -> Result<()> {
-    let npm = npm_cmd();
+    let pkg = package_manager_cmd();
     cmd!(shell, "cargo fmt --all")
         .run()
         .context("failed to run cargo fmt")?;
-    cmd!(shell, "{npm} run format")
+    cmd!(shell, "{pkg} run format")
         .run()
-        .context("failed to run npm format")?;
+        .context("failed to run frontend formatter")?;
     Ok(())
 }
 
 fn run_check(shell: &Shell) -> Result<()> {
-    let npm = npm_cmd();
+    let pkg = package_manager_cmd();
     cmd!(shell, "cargo fmt --all -- --check")
         .run()
         .context("cargo fmt --check failed")?;
@@ -53,12 +56,26 @@ fn run_check(shell: &Shell) -> Result<()> {
     )
     .run()
     .context("cargo clippy failed")?;
-    cmd!(shell, "{npm} run lint")
+    cmd!(shell, "{pkg} run lint")
         .run()
-        .context("npm lint failed")?;
-    cmd!(shell, "{npm} run format:check")
+        .context("frontend lint failed")?;
+    cmd!(shell, "{pkg} run format:check")
         .run()
-        .context("npm format:check failed")?;
+        .context("frontend format:check failed")?;
+    Ok(())
+}
+
+fn run_package(shell: &Shell) -> Result<()> {
+    let pkg = package_manager_cmd();
+    cmd!(shell, "{pkg} install --frozen-lockfile")
+        .run()
+        .context("failed to install frontend dependencies")?;
+    cmd!(shell, "{pkg} run build")
+        .run()
+        .context("frontend build failed")?;
+    cmd!(shell, "{pkg} run tauri build")
+        .run()
+        .context("tauri build failed")?;
     Ok(())
 }
 
@@ -69,10 +86,10 @@ fn project_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn npm_cmd() -> &'static str {
+fn package_manager_cmd() -> &'static str {
     if cfg!(windows) {
-        "npm.cmd"
+        "pnpm.cmd"
     } else {
-        "npm"
+        "pnpm"
     }
 }

@@ -136,6 +136,9 @@ pnpm run preview      # 启动本地预览服务器
 pnpm run format       # 使用 Prettier 格式化代码
 pnpm run lint         # 仅做类型检查
 pnpm run tauri build  # 构建桌面安装包
+cargo xtask fmt       # 格式化所有代码
+cargo xtask check     # 检查所有代码
+cargo xtask package   # 一键执行 pnpm build + tauri build
 ```
 
 ---
