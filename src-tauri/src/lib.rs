@@ -10,7 +10,7 @@ mod windows_utils;
 
 use commands::{
     execute_action, get_settings, submit_query, trigger_reindex, update_hotkey, update_settings,
-    OPEN_SETTINGS_EVENT,
+    HIDE_WINDOW_EVENT, OPEN_SETTINGS_EVENT,
 };
 use config::AppConfig;
 use hotkey::bind_hotkey;
@@ -96,10 +96,15 @@ pub fn run() {
         .on_window_event(|window, event| {
             use tauri::WindowEvent;
 
-            // 当主窗口失去焦点时自动隐藏
+            // 当主窗口失去焦点时，先通知前端重置搜索状态，再隐藏窗口
             if window.label() == MAIN_WINDOW_LABEL {
                 if let WindowEvent::Focused(false) = event {
                     let app_handle = window.app_handle();
+
+                    // 通知前端重置搜索状态
+                    let _ = app_handle.emit(HIDE_WINDOW_EVENT, ());
+
+                    // 隐藏主窗口
                     if let Some(main_window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
                         let _ = main_window.hide();
                     }
